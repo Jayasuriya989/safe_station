@@ -16,16 +16,6 @@ Endpoints:
     - GET /state: Get current environment state
     - GET /schema: Get action/observation schemas
     - WS /ws: WebSocket endpoint for persistent sessions
-
-Usage:
-    # Development (with auto-reload):
-    uvicorn server.app:app --reload --host 0.0.0.0 --port 8000
-
-    # Production:
-    uvicorn server.app:app --host 0.0.0.0 --port 8000 --workers 4
-
-    # Or run directly:
-    python -m server.app
 """
 
 try:
@@ -49,39 +39,33 @@ app = create_app(
     SafeStationAction,
     SafeStationObservation,
     env_name="safe_station",
-    max_concurrent_envs=1,  # increase this number to allow more concurrent WebSocket sessions
+    max_concurrent_envs=1,
 )
+
+@app.get("/")
+async def root():
+    """Welcome page to satisfy Hugging Face health checks."""
+    return {
+        "status": "online",
+        "environment": "Safe Station RL v1.0",
+        "message": "Visit /docs for the interactive API explorer."
+    }
+
+@app.get("/health")
+async def health():
+    """Dedicated health check endpoint for Docker."""
+    return {"status": "ok"}
 
 
 def main(host: str = "0.0.0.0", port: int = 8000):
-    """
-    Entry point for direct execution via uv run or python -m.
-
-    This function enables running the server without Docker:
-        uv run --project . server
-        uv run --project . server --port 8001
-        python -m safe_station.server.app
-
-    Args:
-        host: Host address to bind to (default: "0.0.0.0")
-        port: Port number to listen on (default: 8000)
-
-    For production deployments, consider using uvicorn directly with
-    multiple workers:
-        uvicorn safe_station.server.app:app --workers 4
-    """
+    """Entry point for direct execution."""
     import uvicorn
-
     uvicorn.run(app, host=host, port=port)
 
 
 if __name__ == '__main__':
     import argparse
-
     parser = argparse.ArgumentParser()
     parser.add_argument("--port", type=int, default=8000)
     args = parser.parse_args()
-    if args.port != 8000:
-        main(port=args.port)
-    else:
-        main()
+    main(port=args.port)
