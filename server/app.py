@@ -1,39 +1,41 @@
 # Copyright (c) Meta Platforms, Inc. and affiliates.
 # All rights reserved.
-#
-# This source code is licensed under the BSD-style license found in the
-# LICENSE file in the root directory of this source tree.
 
 """
 FastAPI application for the Safe Station Environment.
-
-This module creates an HTTP server that exposes the SafeStationEnvironment
-over HTTP and WebSocket endpoints, compatible with EnvClient.
-
-Endpoints:
-    - POST /reset: Reset the environment
-    - POST /step: Execute an action
-    - GET /state: Get current environment state
-    - GET /schema: Get action/observation schemas
-    - WS /ws: WebSocket endpoint for persistent sessions
 """
+
+import sys
+import os
+
+# Robust path injection: Ensure the repository root is in sys.path
+# This allows 'import models' and 'import safe_station_environment' to work 
+# regardless of where the server is started from.
+root_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if root_dir not in sys.path:
+    sys.path.insert(0, root_dir)
 
 try:
     from openenv.core.env_server.http_server import create_app
-except Exception as e:  # pragma: no cover
-    raise ImportError(
-        "openenv is required for the web interface. Install dependencies with '\n    uv sync\n'"
-    ) from e
+except ImportError:
+    # Error will be raised during app creation if not installed
+    create_app = None
 
 try:
     from models import SafeStationAction, SafeStationObservation
     from safe_station_environment import SafeStationEnvironment
 except ImportError:
-    import sys
-    import os
-    sys.path.append(os.path.join(os.getcwd(), '..'))
-    from models import SafeStationAction, SafeStationObservation
-    from safe_station_environment import SafeStationEnvironment
+    # Fallback for local development environments
+    try:
+        from .models import SafeStationAction, SafeStationObservation
+        from .safe_station_environment import SafeStationEnvironment
+    except ImportError:
+        # Final fallback: manually import from root if everything else fails
+        import models
+        import safe_station_environment
+        SafeStationAction = models.SafeStationAction
+        SafeStationObservation = models.SafeStationObservation
+        SafeStationEnvironment = safe_station_environment.SafeStationEnvironment
 
 
 # Create the app with web interface and README integration
@@ -43,7 +45,7 @@ app = create_app(
     SafeStationObservation,
     env_name="safe_station",
     max_concurrent_envs=1,
-)
+) if create_app else None
 
 @app.get("/")
 async def root():
@@ -63,7 +65,8 @@ async def health():
 def main():
     """Entry point for direct execution."""
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    if app:
+        uvicorn.run(app, host="0.0.0.0", port=8000)
 
 
 if __name__ == "__main__":

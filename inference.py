@@ -2,9 +2,7 @@
 Safe Station Inference Validation Wrapper
 Meta PyTorch OpenEnv Hackathon 2026
 
-This is the single entry point for all environment validation:
-  1. OpenEnv Compliance Check  - Validates reset()/step() format (dict + 3-tuple)
-  2. Multi-Step Physical Test   - Runs a full episode and prints reward math + scoring
+This is the single entry point for all environment validation.
 """
 
 import asyncio
@@ -15,7 +13,16 @@ import os
 from typing import Dict, Tuple
 
 # Fix Windows PowerShell Unicode encoding issue
-sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace')
+try:
+    if sys.stdout.buffer:
+        sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace')
+except (AttributeError, io.UnsupportedOperation):
+    pass
+
+# Robust path injection: Ensure the repository root is in sys.path
+root_dir = os.path.dirname(os.path.abspath(__file__))
+if root_dir not in sys.path:
+    sys.path.insert(0, root_dir)
 
 # === OpenEnv HTTP Client / Models ===
 try:
@@ -23,12 +30,17 @@ try:
     from models import SafeStationAction
     from safe_station_environment import SafeStationEnvironment
 except ImportError:
-    import sys
-    import os
-    sys.path.append(os.getcwd())
-    from client import SafeStationEnv
-    from models import SafeStationAction
-    from safe_station_environment import SafeStationEnvironment
+    try:
+        from .client import SafeStationEnv
+        from .models import SafeStationAction
+        from .safe_station_environment import SafeStationEnvironment
+    except ImportError:
+        import client
+        import models
+        import safe_station_environment
+        SafeStationEnv = client.SafeStationEnv
+        SafeStationAction = models.SafeStationAction
+        SafeStationEnvironment = safe_station_environment.SafeStationEnvironment
 
 ACTIONS = {0: "Grid Charge", 1: "Battery Charge", 2: "Top-Up BESS", 3: "Hybrid Charge"}
 SEP = "-" * 62
