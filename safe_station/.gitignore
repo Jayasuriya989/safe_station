@@ -1,0 +1,59 @@
+# Python bytecode and cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.pyo
+
+# Virtual environments
+.venv/
+venv/
+env/
+.env
+
+# uv / pip
+.uv/
+*.egg-info/
+dist/
+build/
+*.egg
+
+# Environment variables / secrets
+.env
+.env.*
+*.key
+secrets.json
+
+# IDE / Editor settings
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# OS files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Logs and temp files
+*.log
+*.log.*
+*.tmp
+*.out
+*.txt
+!README.md
+
+# Test output files
+validation_out.txt
+scenario_out.txt
+
+# Docker
+*.tar
+
+# Jupyter Notebooks
+.ipynb_checkpoints/
+
+# Hugging Face cache
+.cache/

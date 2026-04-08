@@ -1,0 +1,49 @@
+﻿
+==============================================================
+  EPISODE START
+==============================================================
+  Hour: 00:00 | Grid: Rs.4.0 | BESS: 31.0%
+  Car Present: NO | Car Need: 0.0%
+
+  [PHASE 1] No car at station. Waiting / Topping up BESS...
+  --------------------------------------------------------------
+  Wait  1 | 00:00 | Grid: Rs.4.0 | BESS: 31.0% -> 61.0% | Action: Top-Up BESS | Top-Up Reward: +60.00
+  Wait  2 | 00:00 | Grid: Rs.4.0 | BESS: 61.0% -> 91.0% | Action: Top-Up BESS | Top-Up Reward: +60.00
+  Wait  3 | 00:00 | Grid: Rs.4.0 | BESS: 91.0% -> 100.0% | Action: Top-Up BESS | Top-Up Reward: +18.00
+  Wait  4 | 00:00 | Grid: Rs.4.0 | BESS: 100.0% -> 100.0% | Action: Grid Charge
+
+  >> Car arrived! Need: 33.0% ù Starting charging phase.
+
+  [PHASE 2] Charging session started.
+  --------------------------------------------------------------
+
+  Step  1 | 01:00 | Grid: Rs.4.0 | BESS Before: 100.0%
+  Action : Battery Charge (ID: 1)
+  --------------------------------------------------------------
+    Base Reward (Success +200):       +0.00
+    Bonus (Peak-Shave/Top-Up):        +0.00
+    Operational Cost (Grid $):        -0.00
+    Time Penalty (Car Waiting):       -5.00
+    ------------------------------------------
+    STEP REWARD:                      -5.00
+  --------------------------------------------------------------
+  BESS After: 80.0% | [WAIT] Remaining: 13.0%
+
+  Step  2 | 01:00 | Grid: Rs.4.0 | BESS Before: 80.0%
+  Action : Battery Charge (ID: 1)
+  --------------------------------------------------------------
+    Base Reward (Success +200):     +200.00
+    Bonus (Peak-Shave/Top-Up):        +0.00
+    Operational Cost (Grid $):        -0.00
+    Time Penalty (Car Waiting):       +0.00
+    ------------------------------------------
+    STEP REWARD:                    +200.00
+  --------------------------------------------------------------
+  BESS After: 60.0% | [DONE] Car fully charged and left!
+
+  *** Car fully charged at Charging Step 2! ***
+
+==============================================================
+  EPISODE COMPLETE | TOTAL REWARD: +333.00
+==============================================================
+
