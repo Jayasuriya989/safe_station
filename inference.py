@@ -19,13 +19,16 @@ sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='repla
 
 # === OpenEnv HTTP Client / Models ===
 try:
-    from safe_station.client import SafeStationEnv
-    from safe_station.models import SafeStationAction
-    from safe_station.server.safe_station_environment import SafeStationEnvironment
-except ImportError:
     from client import SafeStationEnv
     from models import SafeStationAction
-    from server.safe_station_environment import SafeStationEnvironment
+    from safe_station_environment import SafeStationEnvironment
+except ImportError:
+    import sys
+    import os
+    sys.path.append(os.getcwd())
+    from client import SafeStationEnv
+    from models import SafeStationAction
+    from safe_station_environment import SafeStationEnvironment
 
 ACTIONS = {0: "Grid Charge", 1: "Battery Charge", 2: "Top-Up BESS", 3: "Hybrid Charge"}
 SEP = "-" * 62

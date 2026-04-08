@@ -25,10 +25,10 @@ ENV LOCAL_IMAGE_NAME="safe_station:latest"
 COPY --chown=user . .
 
 # Install dependencies
-# We use the populated requirements.txt inside the package
-RUN pip install --no-cache-dir --user -r safe_station/requirements.txt
+# We use the populated requirements.txt at root
+RUN pip install --no-cache-dir --user -r requirements.txt
 
-# Set PYTHONPATH so that 'import safe_station' works correctly
+# Set PYTHONPATH so that 'import server' works correctly
 ENV PYTHONPATH="/app"
 
 # Expose the FastAPI port (matches app_port in README.md)
@@ -40,4 +40,4 @@ HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
 
 # Start the environment server
 # Using the module path relative to PYTHONPATH=/app
-CMD ["python3", "-m", "uvicorn", "safe_station.server.app:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["python3", "-m", "uvicorn", "server.app:app", "--host", "0.0.0.0", "--port", "8000"]

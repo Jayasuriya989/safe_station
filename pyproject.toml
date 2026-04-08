@@ -12,6 +12,13 @@ description = "Safe Station environment for OpenEnv"
 requires-python = ">=3.10"
 dependencies = [
     "openenv-core[core]>=0.2.2",
+    "fastapi",
+    "uvicorn",
+    "pydantic",
+    "httpx",
+    "python-multipart",
+    "websockets",
+    "psutil",
 ]
 
 [project.optional-dependencies]
@@ -21,9 +28,9 @@ dev = [
 ]
 
 [project.scripts]
-server = "safe_station.server.app:main"
+server = "server.app:main"
 
 [tool.setuptools]
 include-package-data = true
-packages = ["safe_station", "safe_station.server"]
-package-dir = { "safe_station" = "safe_station", "safe_station.server" = "safe_station/server" }
+packages = ["server", "."]
+package-dir = { "server" = "server", "" = "." }

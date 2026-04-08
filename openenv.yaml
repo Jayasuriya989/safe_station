@@ -1,4 +1,5 @@
 name: safe_station
 version: 0.1.0
 type: environment
+entry_point: "server.app:app"
 description: Safe Station environment for OpenEnv Meta Hackathon 2026

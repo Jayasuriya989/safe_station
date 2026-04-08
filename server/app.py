@@ -26,11 +26,14 @@ except Exception as e:  # pragma: no cover
     ) from e
 
 try:
-    from ..models import SafeStationAction, SafeStationObservation
-    from .safe_station_environment import SafeStationEnvironment
-except ImportError:
     from models import SafeStationAction, SafeStationObservation
-    from server.safe_station_environment import SafeStationEnvironment
+    from safe_station_environment import SafeStationEnvironment
+except ImportError:
+    import sys
+    import os
+    sys.path.append(os.path.join(os.getcwd(), '..'))
+    from models import SafeStationAction, SafeStationObservation
+    from safe_station_environment import SafeStationEnvironment
 
 
 # Create the app with web interface and README integration
