@@ -28,8 +28,8 @@ COPY --chown=user . .
 # We use the populated requirements.txt at root
 RUN pip install --no-cache-dir --user -r requirements.txt
 
-# Set PYTHONPATH so that 'import server' works correctly
-ENV PYTHONPATH="/app"
+# Set PYTHONPATH so that everything at root is discoverable
+ENV PYTHONPATH="/app:/app/server:$PYTHONPATH"
 
 # Expose the FastAPI port (matches app_port in README.md)
 EXPOSE 8000
