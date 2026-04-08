@@ -17,6 +17,9 @@ ENV PATH="/home/user/.local/bin:$PATH"
 # Set working directory
 WORKDIR /app
 
+# Mandatory for OpenEnv compliance
+ENV LOCAL_IMAGE_NAME="safe_station:latest"
+
 # Copy the environment source code
 # Ensure ownership is assigned to the 'user'
 COPY --chown=user . .

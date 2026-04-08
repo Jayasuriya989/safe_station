@@ -1,0 +1,9 @@
+﻿
+--- Starting Task 1: Easy Start ---
+Task 1: Easy Start completed in 47 steps. Total Reward: -1375.00. Score: 0.00/1.0
+
+--- Starting Task 2: Medium Operations ---
+Task 2: Medium Operations completed in 17 steps. Total Reward: -775.00. Score: 0.11/1.0
+
+--- Starting Task 3: Hard Constraints ---
+Task 3: Hard Constraints completed in 17 steps. Total Reward: -325.00. Score: 0.34/1.0
