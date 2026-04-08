@@ -44,6 +44,7 @@ desktop.ini
 *.out
 *.txt
 !README.md
+!requirements.txt
 
 # Test output files
 validation_out.txt
