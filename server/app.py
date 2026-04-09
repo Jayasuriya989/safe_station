@@ -2,11 +2,15 @@ import sys
 import os
 
 # ABSOLUTE TOP PRIORITY: Path Injection
-# Ensure the root directory (/app) is the first place Python looks for modules.
+# Ensure the root directory (/app) and server directory are in sys.path.
 # We resolve the absolute real path to the grandparent directory of this file.
 root_dir = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
+server_dir = os.path.join(root_dir, "server")
+
 if root_dir not in sys.path:
     sys.path.insert(0, root_dir)
+if server_dir not in sys.path:
+    sys.path.insert(0, server_dir)
 
 # Copyright (c) Meta Platforms, Inc. and affiliates.
 # All rights reserved.
