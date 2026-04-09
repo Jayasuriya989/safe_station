@@ -19,6 +19,7 @@ dependencies = [
     "python-multipart",
     "websockets",
     "psutil",
+    "openai",
 ]
 
 [project.optional-dependencies]

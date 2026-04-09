@@ -10,7 +10,13 @@ import random
 import sys
 import io
 import os
+import json
 from typing import Dict, Tuple
+
+try:
+    from openai import OpenAI
+except ImportError:
+    OpenAI = None
 
 
 # Robust path injection: Ensure the repository root is in sys.path
@@ -48,10 +54,30 @@ SEP = "-" * 62
 
 def get_mandatory_vars() -> Dict[str, str]:
     """Returns the mandatory environment variables required for the Hackathon."""
+    # 1. API_BASE_URL (Strictly use platform injected variables)
+    base_url = os.getenv("API_BASE_URL") or os.getenv("OPENAI_BASE_URL")
+    
+    # 2. API_KEY (Strictly use platform injected variables)
+    api_key = os.getenv("API_KEY") or os.getenv("OPENAI_API_KEY")
+    
+    # 3. Model Name
+    model_name = os.getenv("MODEL_NAME", "Qwen/Qwen2.5-72B-Instruct")
+
+    # Diagnostics (stderr is visible in dashboard logs but won't break stdout parsing)
+    sys.stderr.write(f"\n[DIAGNOSTIC] Environment Init:\n")
+    if not base_url:
+        sys.stderr.write("  [WARNING] API_BASE_URL is missing! Local testing may fail.\n")
+    if not api_key:
+        sys.stderr.write("  [WARNING] API_KEY is missing! Using 'EMPTY' for initialization.\n")
+    
+    sys.stderr.write(f"  - URL: {base_url or 'None (Missing)'}\n")
+    sys.stderr.write(f"  - Model: {model_name}\n\n")
+
     return {
-        "API_BASE_URL":     os.getenv("API_BASE_URL", "http://localhost:11434/v1"),
-        "MODEL_NAME":       os.getenv("MODEL_NAME", "safe-station-gpt"),
-        "HF_TOKEN":         os.getenv("HF_TOKEN", "your_token_here"),
+        "API_BASE_URL":     base_url or "https://router.huggingface.co/v1", # Fallback ONLY for local, but URL check will warn
+        "API_KEY":          api_key or "EMPTY",
+        "MODEL_NAME":       model_name,
+        "HF_TOKEN":         os.getenv("HF_TOKEN", ""),
         "LOCAL_IMAGE_NAME": os.getenv("LOCAL_IMAGE_NAME", "safe_station:latest"),
     }
 
@@ -97,6 +123,72 @@ def _to_obs_dict(obs) -> Dict[str, float]:
 # SECTION 2: Physical Stress Tester (Multi-Step Logic)
 # =====================================================================
 
+# =====================================================================
+# SECTION 1.5: LLM Agent (Compliance Layer)
+# =====================================================================
+class LLMAgent:
+    def __init__(self, base_url: str, api_key: str, model_name: str):
+        # Explicit warning if config is incomplete
+        if not base_url or base_url == "https://router.huggingface.co/v1":
+             sys.stderr.write("  [LLM AGENT] Warning: Using default HF Router. Ensure API_BASE_URL is set in environment.\n")
+        
+        self.client = OpenAI(base_url=base_url, api_key=api_key) if OpenAI else None
+        self.model_name = model_name
+
+    def get_action(self, obs: Dict[str, float]) -> int:
+        """Asks the LLM for an action choice (0-3)."""
+        if not self.client:
+            sys.stderr.write("  [LLM AGENT] OpenAI client not initialized. Falling back to heuristics.\n")
+            return heuristic_pick_action(obs["car_present"], obs["grid_price"], obs["station_battery_level"])
+
+        prompt = (
+            f"You are an AI managing an EV Charging Station. Decide the best action (0-3) based on state:\n"
+            f"- Hour: {obs['hour']}\n"
+            f"- Grid Price: {obs['grid_price']}\n"
+            f"- Station Battery: {obs['station_battery_level']}%\n"
+            f"- Car Present: {'YES' if obs['car_present'] else 'NO'}\n"
+            f"- Car Need: {obs['car_battery_need']} units\n\n"
+            f"Actions:\n"
+            f"0: Wait / Grid Charge (Standard)\n"
+            f"1: Battery Charge (Use BESS)\n"
+            f"2: Top-Up BESS (Buy when cheap)\n"
+            f"3: Hybrid Charge (Fast)\n\n"
+            f"Respond ONLY with the action number (0, 1, 2, or 3)."
+        )
+
+        try:
+            # Increased timeout to 15s to handle proxy latency
+            response = self.client.chat.completions.create(
+                model=self.model_name,
+                messages=[{"role": "user", "content": prompt}],
+                max_tokens=10,
+                temperature=0.0,
+                timeout=15.0
+            )
+            content = response.choices[0].message.content.strip()
+            
+            # Simple digit extraction
+            for char in content:
+                if char in "0123":
+                    return int(char)
+            
+            sys.stderr.write(f"  [LLM AGENT] Unexpected response format: '{content}'. Falling back to heuristics.\n")
+            return heuristic_pick_action(obs["car_present"], obs["grid_price"], obs["station_battery_level"])
+
+        except Exception as e:
+            error_msg = str(e)
+            sys.stderr.write(f"  [LLM ERROR] Step {obs.get('hour', '?')} call failed: {error_msg}\n")
+            
+            # Diagnostic hints for the user in the dashboard
+            if "401" in error_msg:
+                sys.stderr.write("  [HINT] 401 Unauthorized: Check if API_KEY is valid or correctly injected.\n")
+            elif "404" in error_msg:
+                sys.stderr.write("  [HINT] 404 Not Found: Check API_BASE_URL and MODEL_NAME.\n")
+            elif "timeout" in error_msg.lower():
+                sys.stderr.write("  [HINT] Request timed out. The proxy or model server is slow.\n")
+                
+            return heuristic_pick_action(obs["car_present"], obs["grid_price"], obs["station_battery_level"])
+
 def heuristic_pick_action(car_present, grid_price, bess_level, car_need=0.0):
     if car_present:
         if bess_level >= 20.0:
@@ -132,7 +224,7 @@ def compute_reward_math(action_id, grid_price, car_present, car_need_before, bes
 
     return base, bonus, op_cost, time_pen
 
-def run_full_episode_test(initial_hour, initial_bess, initial_car_present, initial_car_needs):
+def run_full_episode_test(initial_hour, initial_bess, initial_car_present, initial_car_needs, m_vars):
     env = SafeStationEnvironment()
     env.reset()
     env.hour                  = initial_hour
@@ -141,7 +233,7 @@ def run_full_episode_test(initial_hour, initial_bess, initial_car_present, initi
     env.car_present           = int(initial_car_present)
     env.car_battery_need      = float(initial_car_needs)
 
-    # print(f"  START State -> Hour: {initial_hour:02d}:00 | BESS: {initial_bess:.1f}% | Car: {'YES' if initial_car_present else 'NO'}")
+    agent = LLMAgent(m_vars["API_BASE_URL"], m_vars["API_KEY"], m_vars["MODEL_NAME"])
 
     episode_reward = 0.0
     steps_taken = 0
@@ -150,8 +242,20 @@ def run_full_episode_test(initial_hour, initial_bess, initial_car_present, initi
     for s in range(1, 11):
         if not env.car_present: break
         steps_taken = s
+        
+        obs = {
+            "hour": env.hour,
+            "grid_price": env.grid_price,
+            "station_battery_level": env.station_battery_level,
+            "car_present": env.car_present,
+            "car_battery_need": env.car_battery_need
+        }
+        
         c_bef, n_bef, b_bef, gp = env.car_present, env.car_battery_need, env.station_battery_level, env.grid_price
-        aid = heuristic_pick_action(c_bef, gp, b_bef, n_bef)
+        
+        # ACTING via LLM Agent
+        aid = agent.get_action(obs)
+        
         env.step(SafeStationAction(action=aid))
         base, bonus, op, tp = compute_reward_math(aid, gp, c_bef, n_bef, b_bef)
         step_reward = (base + bonus + op + tp)
@@ -160,11 +264,6 @@ def run_full_episode_test(initial_hour, initial_bess, initial_car_present, initi
         # OpenEnv Structured Output
         print(f"[STEP] step={s} reward={step_reward:.4f}", flush=True)
 
-    # print(f"\n{SEP}")
-    # print(f"  TEST COMPLETE | TOTAL EPISODE REWARD: {episode_reward:+.2f}")
-    # print(f"  LEADERBOARD SCORE: {get_leaderboard_score(episode_reward):.4f} / 1.0")
-    # print(f"{SEP}\n")
-    
     return episode_reward, steps_taken
 
 # =====================================================================
@@ -200,7 +299,7 @@ async def main():
     rc = 1 # Force car present to ensure [STEP] blocks are printed
     rn = float(random.randint(20, 80)) if rc else 0.0
     
-    total_reward, total_steps = run_full_episode_test(rt, rb, rc, rn)
+    total_reward, total_steps = run_full_episode_test(rt, rb, rc, rn, m_vars)
     
     # OpenEnv Structured Output End
     final_score = get_leaderboard_score(total_reward)
