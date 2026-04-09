@@ -1,3 +1,4 @@
+spec_version: 1
 name: safe_station
 version: 0.1.0
 type: environment
@@ -9,16 +10,16 @@ tasks:
     name: "Task 1: Easy Start"
     description: "Successfully charge 1-2 cars with limited grid fluctuations."
     difficulty: "easy"
-    grader: "server.graders:grade_easy"
+    grader: "tasks.graders:grade_easy"
 
   - id: medium_ops
     name: "Task 2: Medium Operations"
     description: "Manage multiple car arrivals and peak-pricing hours."
     difficulty: "medium"
-    grader: "server.graders:grade_medium"
+    grader: "tasks.graders:grade_medium"
 
   - id: hard_constraints
     name: "Task 3: Hard Constraints"
     description: "High traffic station with frequent cars and expensive peak electricity."
     difficulty: "hard"
-    grader: "server.graders:grade_hard"
+    grader: "tasks.graders:grade_hard"
