@@ -60,7 +60,7 @@ def get_leaderboard_score(total_reward: float) -> float:
     offset = 1000.0
     max_possible = 2000.0
     score = (total_reward + offset) / max_possible
-    return max(0.0, min(1.0, score))
+    return max(0.0, min(0.99, score))
 
 # =====================================================================
 # SECTION 1: InferenceWrapper (Standard Gym-Style Interface)
