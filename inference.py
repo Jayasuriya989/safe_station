@@ -12,17 +12,14 @@ import io
 import os
 from typing import Dict, Tuple
 
-# Fix Windows PowerShell Unicode encoding issue
-try:
-    if sys.stdout.buffer:
-        sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace')
-except (AttributeError, io.UnsupportedOperation):
-    pass
 
 # Robust path injection: Ensure the repository root is in sys.path
 root_dir = os.path.dirname(os.path.abspath(__file__))
 if root_dir not in sys.path:
     sys.path.insert(0, root_dir)
+server_dir = os.path.join(root_dir, "server")
+if os.path.exists(server_dir) and server_dir not in sys.path:
+    sys.path.insert(0, server_dir)
 
 # === OpenEnv HTTP Client / Models ===
 try:
@@ -144,36 +141,46 @@ def run_full_episode_test(initial_hour, initial_bess, initial_car_present, initi
     env.car_present           = int(initial_car_present)
     env.car_battery_need      = float(initial_car_needs)
 
-    print(f"\n{SEP}\n  SECTION 2: Multi-Step Physical Test\n{SEP}")
-    print(f"  START State -> Hour: {initial_hour:02d}:00 | BESS: {initial_bess:.1f}% | Car: {'YES' if initial_car_present else 'NO'}")
+    # print(f"  START State -> Hour: {initial_hour:02d}:00 | BESS: {initial_bess:.1f}% | Car: {'YES' if initial_car_present else 'NO'}")
 
     episode_reward = 0.0
+    steps_taken = 0
     
     # Phase 2: Charging (Briefed for logs)
     for s in range(1, 11):
         if not env.car_present: break
+        steps_taken = s
         c_bef, n_bef, b_bef, gp = env.car_present, env.car_battery_need, env.station_battery_level, env.grid_price
         aid = heuristic_pick_action(c_bef, gp, b_bef, n_bef)
         env.step(SafeStationAction(action=aid))
         base, bonus, op, tp = compute_reward_math(aid, gp, c_bef, n_bef, b_bef)
-        episode_reward += (base + bonus + op + tp)
+        step_reward = (base + bonus + op + tp)
+        episode_reward += step_reward
+        
+        # OpenEnv Structured Output
+        print(f"[STEP] step={s} reward={step_reward:.4f}", flush=True)
 
-    print(f"\n{SEP}")
-    print(f"  TEST COMPLETE | TOTAL EPISODE REWARD: {episode_reward:+.2f}")
-    print(f"  LEADERBOARD SCORE: {get_leaderboard_score(episode_reward):.4f} / 1.0")
-    print(f"{SEP}\n")
+    # print(f"\n{SEP}")
+    # print(f"  TEST COMPLETE | TOTAL EPISODE REWARD: {episode_reward:+.2f}")
+    # print(f"  LEADERBOARD SCORE: {get_leaderboard_score(episode_reward):.4f} / 1.0")
+    # print(f"{SEP}\n")
+    
+    return episode_reward, steps_taken
 
 # =====================================================================
 # Main Validation Flow
 # =====================================================================
 
 async def main():
+    # OpenEnv Structured Output Start
+    print("[START] task=safe_station", flush=True)
+
     m_vars = get_mandatory_vars()
-    print(f"\n{SEP}\n  HACKATHON SYSTEM INITIALIZATION\n{SEP}")
-    print(f"  API_BASE_URL:     {m_vars['API_BASE_URL']}")
-    print(f"  MODEL_NAME:       {m_vars['MODEL_NAME']}")
-    print(f"  LOCAL_IMAGE_NAME: {m_vars['LOCAL_IMAGE_NAME']}")
-    print(f"{SEP}")
+    # print(f"\n{SEP}\n  HACKATHON SYSTEM INITIALIZATION\n{SEP}")
+    # print(f"  API_BASE_URL:     {m_vars['API_BASE_URL']}")
+    # print(f"  MODEL_NAME:       {m_vars['MODEL_NAME']}")
+    # print(f"  LOCAL_IMAGE_NAME: {m_vars['LOCAL_IMAGE_NAME']}")
+    # print(f"{SEP}")
 
     # 1. API Compliance
     print("\n[Compliance] Connecting to environment server at http://localhost:8000...")
@@ -190,9 +197,14 @@ async def main():
     # 2. Physical Test
     rt = random.randint(0, 23)
     rb = float(random.randint(20, 100))
-    rc = random.choice([0, 1])
+    rc = 1 # Force car present to ensure [STEP] blocks are printed
     rn = float(random.randint(20, 80)) if rc else 0.0
-    run_full_episode_test(rt, rb, rc, rn)
+    
+    total_reward, total_steps = run_full_episode_test(rt, rb, rc, rn)
+    
+    # OpenEnv Structured Output End
+    final_score = get_leaderboard_score(total_reward)
+    print(f"[END] task=safe_station score={final_score:.4f} steps={total_steps}", flush=True)
 
 if __name__ == "__main__":
     asyncio.run(main())
