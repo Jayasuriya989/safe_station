@@ -190,13 +190,20 @@ class LLMAgent:
             return heuristic_pick_action(obs["car_present"], obs["grid_price"], obs["station_battery_level"])
 
 def heuristic_pick_action(car_present, grid_price, bess_level, car_need=0.0):
+    """
+    Optimal heuristic:
+    - Battery has ZERO grid cost → always preferred when BESS > 20.
+    - Top-up ONLY at off-peak (price < 5): earns +180 bonus - 120 cost = +60/step profit.
+    - At normal/peak prices, top-up costs money with no bonus → just wait.
+    """
     if car_present:
-        if bess_level >= 20.0:
-            return 1 if grid_price > 10.0 else 3
-        return 0
+        if bess_level > 20.0:
+            return 1  # Battery: zero grid cost + peak-shave +50 bonus if price > 10
+        return 0  # Grid: safe fallback when BESS at floor
     else:
-        if grid_price < 5.0 and bess_level < 100.0: return 2
-        return 0
+        if grid_price < 5.0 and bess_level < 100.0:
+            return 2  # Off-peak top-up: +60/step net profit
+        return 0  # Wait — top-up at price ≥ 5 is not profitable
 
 def compute_reward_math(action_id, grid_price, car_present, car_need_before, bess_before):
     base = bonus = op_cost = time_pen = 0.0

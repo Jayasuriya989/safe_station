@@ -9,41 +9,20 @@ class MockOpenAI:
         pass
 
     def get_model_message(self, step, obs, history):
-        # Optimized heuristic agent for the Meta OpenEnv Hackathon Leaderboard
-        # Goal: Maximize score (0.0 - 1.0) by minimizing grid cost and avoiding penalties.
-        
+        # Optimized heuristic agent - protects BESS from hitting 0 (-500 critical failure)
         car_present = obs.car_present
         grid_price = obs.grid_price
         bess = obs.station_battery_level
         car_need = obs.car_battery_need
-        
+
         if car_present:
-            # --- PHASE: CHARGING CAR ---
-            # 1. PEAK PROTECTION: Use Battery only during expensive hours
-            if grid_price > 10.0:
-                return 1 if bess >= 20.0 else 0
-            
-            # 2. EFFICIENCY: Use Battery for small needs to avoid grid waste
-            if car_need <= 20.0 and bess >= 20.0:
-                return 1
-                
-            # 3. SPEED: Use Hybrid for large needs if BESS is healthy (>40%)
-            if bess > 40.0:
-                return 3 
-            
-            # 4. CONSERVATION: Use Battery if available, otherwise Grid
-            return 1 if bess >= 20.0 else 0
+            if bess > 20.0:
+                return 1  # Battery: zero grid cost + peak-shave +50 bonus if price > 10
+            return 0  # Grid: safe fallback when BESS at floor
         else:
-            # --- PHASE: MAINTENANCE ---
-            # 1. OPTIMAL TOP-UP: Fill BESS during off-peak (earns +Bonus, Net ₹2 profit)
             if grid_price < 5.0 and bess < 100.0:
-                return 2 
-            
-            # 2. EMERGENCY REFILL: Refill at normal price if dangerously low
-            if bess < 40.0 and grid_price < 10.0:
-                return 2 
-                
-            return 0 # Wait
+                return 2  # Off-peak top-up: +60/step net profit
+            return 0  # Wait — top-up at price >= 5 is not profitable
 
 class MockOpenAIClient:
     def __init__(self, *args, **kwargs):
