@@ -13,6 +13,27 @@ import os
 import json
 from typing import Dict, Tuple
 
+# ── Load .env file for local development (before any os.getenv calls) ─────────
+def _load_dotenv():
+    """Manually parses .env file so no extra dependency is needed."""
+    env_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".env")
+    if not os.path.exists(env_path):
+        return
+    with open(env_path) as f:
+        for line in f:
+            line = line.strip()
+            if not line or line.startswith("#") or "=" not in line:
+                continue
+            key, _, value = line.partition("=")
+            key = key.strip()
+            value = value.strip().strip('"').strip("'")
+            # Only set if not already set by the platform (don't override injected vars)
+            if key and value and not os.environ.get(key):
+                os.environ[key] = value
+
+_load_dotenv()
+# ──────────────────────────────────────────────────────────────────────────────
+
 try:
     from openai import OpenAI
 except ImportError:
@@ -55,26 +76,25 @@ SEP = "-" * 62
 def get_mandatory_vars() -> Dict[str, str]:
     """Returns the mandatory environment variables required for the Hackathon."""
     # 1. API_BASE_URL (Strictly use platform injected variables)
-    base_url = os.getenv("API_BASE_URL") or os.getenv("OPENAI_BASE_URL")
+    base_url = os.getenv("API_BASE_URL", "https://router.huggingface.co/v1/")
     
-    # 2. API_KEY (Strictly use platform injected variables)
-    api_key = os.getenv("API_KEY") or os.getenv("OPENAI_API_KEY")
+    # 2. API_KEY (Try multiple sources for local development convenience)
+    api_key = os.getenv("API_KEY") or os.getenv("OPENAI_API_KEY") or os.getenv("HF_TOKEN")
     
     # 3. Model Name
     model_name = os.getenv("MODEL_NAME", "Qwen/Qwen2.5-72B-Instruct")
 
-    # Diagnostics (stderr is visible in dashboard logs but won't break stdout parsing)
+    # Diagnostics go to stderr so they don't pollute the scoring output
     sys.stderr.write(f"\n[DIAGNOSTIC] Environment Init:\n")
-    if not base_url:
-        sys.stderr.write("  [WARNING] API_BASE_URL is missing! Local testing may fail.\n")
-    if not api_key:
-        sys.stderr.write("  [WARNING] API_KEY is missing! Using 'EMPTY' for initialization.\n")
+    sys.stderr.write(f"  - URL: {base_url}\n")
+    sys.stderr.write(f"  - Model: {model_name}\n")
+    if not api_key or api_key == "your_hf_token_here":
+        sys.stderr.write("  [CRITICAL] API_KEY / HF_TOKEN is missing or not set in .env! LLM calls will fail.\n")
     
-    sys.stderr.write(f"  - URL: {base_url or 'None (Missing)'}\n")
-    sys.stderr.write(f"  - Model: {model_name}\n\n")
+    sys.stderr.write("\n")
 
     return {
-        "API_BASE_URL":     base_url or "https://router.huggingface.co/v1", # Fallback ONLY for local, but URL check will warn
+        "API_BASE_URL":     base_url,
         "API_KEY":          api_key or "EMPTY",
         "MODEL_NAME":       model_name,
         "HF_TOKEN":         os.getenv("HF_TOKEN", ""),
@@ -289,16 +309,16 @@ async def main():
     # print(f"{SEP}")
 
     # 1. API Compliance
-    print("\n[Compliance] Connecting to environment server at http://localhost:8000...")
+    sys.stderr.write("\n[Compliance] Connecting to environment server at http://localhost:8000...\n")
     try:
         env = InferenceWrapper()
         obs = await env.reset()
-        print("  [PASS] reset() OK")
+        sys.stderr.write("  [PASS] reset() OK\n")
         await env.step(0)
-        print("  [PASS] step()  OK")
+        sys.stderr.write("  [PASS] step()  OK\n")
         await env.close()
     except Exception as e:
-        print(f"  [FAIL] {e}")
+        sys.stderr.write(f"  [FAIL] {e}\n")
 
     # 2. Physical Test
     rt = random.randint(0, 23)
