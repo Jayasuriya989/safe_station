@@ -45,7 +45,8 @@ import yaml
 # Manual Metadata Loading (Bulletproof Discovery)
 def load_metadata():
     try:
-        yaml_path = os.path.join(os.path.dirname(__file__), "openenv.yaml")
+        # Load from the root directory (parent of server/)
+        yaml_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "openenv.yaml")
         with open(yaml_path, 'r') as f:
             return yaml.safe_load(f)
     except Exception as e:
