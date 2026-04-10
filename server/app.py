@@ -2,15 +2,18 @@ import sys
 import os
 
 # ABSOLUTE TOP PRIORITY: Path Injection
-# Ensure the root directory (/app) and server directory are in sys.path.
-# We resolve the absolute real path to the grandparent directory of this file.
-root_dir = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
-server_dir = os.path.join(root_dir, "server")
-
-if root_dir not in sys.path:
-    sys.path.insert(0, root_dir)
-if server_dir not in sys.path:
-    sys.path.insert(0, server_dir)
+# Ensure the root directory and server directory are in sys.path.
+# We resolve the absolute real path to ensure the container can find graders.
+try:
+    current_file_dir = os.path.dirname(os.path.realpath(__file__))
+    root_dir = os.path.abspath(os.path.join(current_file_dir, ".."))
+    
+    if root_dir not in sys.path:
+        sys.path.insert(0, root_dir)
+    if current_file_dir not in sys.path:
+        sys.path.insert(0, current_file_dir)
+except Exception as e:
+    sys.stderr.write(f"[WARNING] Path injection failure: {e}\n")
 
 # Copyright (c) Meta Platforms, Inc. and affiliates.
 # All rights reserved.

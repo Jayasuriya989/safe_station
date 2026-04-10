@@ -2,8 +2,11 @@ spec_version: 1
 name: safe_station
 version: 0.1.0
 type: environment
+image: "jsuriya989/safe_station:latest"
+image_type: docker
+repository: "https://github.com/Jayasuriya989/safe_station"
 entry_point: "server.app:app"
-description: Safe Station environment for OpenEnv Meta Hackathon 2026
+description: Meta PyTorch OpenEnv Hackathon 2026 - Safe Station RL Environment
 
 tasks:
   - id: easy_start
