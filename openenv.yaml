@@ -11,15 +11,18 @@ tasks:
     description: "Successfully charge 1-2 cars with limited grid fluctuations."
     difficulty: "easy"
     grader: "tasks.graders:grade_easy"
+    grader_enabled: true
 
   - id: medium_ops
     name: "Task 2: Medium Operations"
     description: "Manage multiple car arrivals and peak-pricing hours."
     difficulty: "medium"
     grader: "tasks.graders:grade_medium"
+    grader_enabled: true
 
   - id: hard_constraints
     name: "Task 3: Hard Constraints"
     description: "High traffic station with frequent cars and expensive peak electricity."
     difficulty: "hard"
     grader: "tasks.graders:grade_hard"
+    grader_enabled: true
