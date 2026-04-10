@@ -249,7 +249,8 @@ def compute_reward_math(action_id, grid_price, car_present, car_need_before, bes
     if car_present and (car_need_before - charge_amt > 0):
         time_pen = -5.0
 
-    return base, bonus, op_cost, time_pen
+    total = base + bonus + op_cost + time_pen
+    return total, base, bonus, op_cost, time_pen
 
 def run_full_episode_test(initial_hour, initial_bess, initial_car_present, initial_car_needs, m_vars):
     env = SafeStationEnvironment()
@@ -265,7 +266,7 @@ def run_full_episode_test(initial_hour, initial_bess, initial_car_present, initi
     episode_reward = 0.0
     steps_taken = 0
     
-    # Phase 2: Charging (Briefed for logs)
+    # Phase 2: Charging (Enriched visibility)
     for s in range(1, 11):
         if not env.car_present: break
         steps_taken = s
@@ -284,17 +285,17 @@ def run_full_episode_test(initial_hour, initial_bess, initial_car_present, initi
         aid = agent.get_action(obs)
         
         env.step(SafeStationAction(action=aid))
-        base, bonus, op, tp = compute_reward_math(aid, gp, c_bef, n_bef, b_bef)
-        step_reward = (base + bonus + op + tp)
+        step_reward, base, bonus, op, tp = compute_reward_math(aid, gp, c_bef, n_bef, b_bef)
         episode_reward += step_reward
         
-        # OpenEnv Structured Output with enriched scenario details
-        print(
-            f"[STEP] step={s} reward={step_reward:.4f} | "
-            f"Hour: {obs['hour']} | Price: {gp:.2f} | BESS: {obs['station_battery_level']:.1f}% | "
-            f"Car: {'YES' if obs['car_present'] else 'NO'} | Need: {obs['car_battery_need']:.1f}", 
-            flush=True
-        )
+        # Detailed Visual Breakdown (Sent to stderr to keep stdout clean for tags)
+        sys.stderr.write(f"\n--- STEP {s} SCENARIO ---\n")
+        sys.stderr.write(f"  State: Hour={obs['hour']} | Price=${gp:.2f} | BESS={b_bef:.1f}% | Need={n_bef:.1f}\n")
+        sys.stderr.write(f"  Action: {ACTIONS.get(aid, aid)}\n")
+        sys.stderr.write(f"  Breakdown: Base={base:+.1f} | Bonus={bonus:+.1f} | Cost={op:+.1f} | TimePen={tp:+.1f}\n")
+        
+        # OpenEnv Structured Output (REQUIRED TAG)
+        print(f"[STEP] step={s} reward={step_reward:.4f}", flush=True)
 
     return episode_reward, steps_taken
 
