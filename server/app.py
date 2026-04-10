@@ -40,6 +40,21 @@ except ImportError:
     SafeStationObservation = models.SafeStationObservation
     SafeStationEnvironment = safe_station_environment.SafeStationEnvironment
 
+import yaml
+
+# Manual Metadata Loading (Bulletproof Discovery)
+def load_metadata():
+    try:
+        yaml_path = os.path.join(os.path.dirname(__file__), "openenv.yaml")
+        with open(yaml_path, 'r') as f:
+            return yaml.safe_load(f)
+    except Exception as e:
+        sys.stderr.write(f"[ERROR] Metadata load failed: {e}\n")
+        return {}
+
+metadata = load_metadata()
+tasks = metadata.get("tasks", [])
+
 app = create_app(
     SafeStationEnvironment,
     SafeStationAction,
@@ -47,6 +62,37 @@ app = create_app(
     env_name="safe_station",
     max_concurrent_envs=1,
 ) if create_app else None
+
+# --- TASK RECOVERY SYSTEM ---
+# Force registration of tasks in the internal app metadata
+if app:
+    app.title = metadata.get("name", "safe_station")
+    app.version = metadata.get("version", "0.1.0")
+
+@app.get("/tasks")
+async def get_tasks():
+    """Explicitly defined endpoint for the validator."""
+    return tasks
+
+@app.get("/metadata")
+async def get_metadata_override():
+    """Explicitly defined endpoint for the validator."""
+    return {
+        "name": metadata.get("name", "safe_station"),
+        "version": metadata.get("version", "0.1.0"),
+        "tasks": tasks
+    }
+
+# FastAPI Route Precedence Hack: Move our new discovery routes to the front
+if app:
+    # Find our new routes (usually at the end) and insert at index 0
+    discovery_paths = ["/tasks", "/metadata"]
+    for i, route in enumerate(list(app.routes)):
+        if hasattr(route, "path") and route.path in discovery_paths:
+            # Pop and insert at 0
+            r = app.routes.pop(i)
+            app.routes.insert(0, r)
+# ----------------------------
 
 @app.get("/")
 async def root():

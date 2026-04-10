@@ -1,0 +1,28 @@
+spec_version: 1
+name: safe_station
+version: 0.1.0
+type: environment
+image: "jsuriya989/safe_station:latest"
+image_type: docker
+repository: "https://github.com/Jayasuriya989/safe_station"
+entry_point: "server.app:app"
+description: Meta PyTorch OpenEnv Hackathon 2026 - Safe Station RL Environment
+
+tasks:
+  - id: easy_start
+    name: "Task 1: Easy Start"
+    description: "Successfully charge 1-2 cars with limited grid fluctuations."
+    difficulty: "easy"
+    grader: "graders:grade_easy"
+
+  - id: medium_ops
+    name: "Task 2: Medium Operations"
+    description: "Manage multiple car arrivals and peak-pricing hours."
+    difficulty: "medium"
+    grader: "graders:grade_medium"
+
+  - id: hard_constraints
+    name: "Task 3: Hard Constraints"
+    description: "High traffic station with frequent cars and expensive peak electricity."
+    difficulty: "hard"
+    grader: "graders:grade_hard"
