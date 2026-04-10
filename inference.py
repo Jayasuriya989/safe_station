@@ -288,8 +288,13 @@ def run_full_episode_test(initial_hour, initial_bess, initial_car_present, initi
         step_reward = (base + bonus + op + tp)
         episode_reward += step_reward
         
-        # OpenEnv Structured Output
-        print(f"[STEP] step={s} reward={step_reward:.4f}", flush=True)
+        # OpenEnv Structured Output with enriched scenario details
+        print(
+            f"[STEP] step={s} reward={step_reward:.4f} | "
+            f"Hour: {obs['hour']} | Price: {gp:.2f} | BESS: {obs['station_battery_level']:.1f}% | "
+            f"Car: {'YES' if obs['car_present'] else 'NO'} | Need: {obs['car_battery_need']:.1f}", 
+            flush=True
+        )
 
     return episode_reward, steps_taken
 
