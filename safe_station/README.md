@@ -85,7 +85,7 @@ A static tracking function handling the backend simulation limits:
 You can easily deploy your OpenEnv logic stack to Hugging Face Spaces using the `openenv push` command:
 
 ```bash
-# From the environment directory (where openenv.yaml is located)
+# From the environment directory (where metaenv.yaml is located)
 openenv push
 
 # Or specify options

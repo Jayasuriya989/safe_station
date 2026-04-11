@@ -252,91 +252,72 @@ def compute_reward_math(action_id, grid_price, car_present, car_need_before, bes
     total = base + bonus + op_cost + time_pen
     return total, base, bonus, op_cost, time_pen
 
-def run_full_episode_test(initial_hour, initial_bess, initial_car_present, initial_car_needs, m_vars):
+# =====================================================================
+# REVISED TASK REGISTRY (Must match your metadata.yaml)
+# =====================================================================
+TASKS = [
+    {"id": "easy_start",       "initial_state": {"h": 10, "b": 50, "c": 1, "n": 40}},
+    {"id": "medium_ops",       "initial_state": {"h": 19, "b": 80, "c": 1, "n": 30}}, 
+    {"id": "hard_constraints", "initial_state": {"h": 3,  "b": 10, "c": 0, "n": 0}}
+]
+
+async def run_task(task_id: str, state_cfg: dict, m_vars: dict):
+    """Runs a single task and prints the structured output tags."""
+    print(f"[START] task={task_id}", flush=True)
+    
+    # Initialize your environment with the specific task state
     env = SafeStationEnvironment()
     env.reset()
-    env.hour                  = initial_hour
-    env.grid_price            = env._get_grid_price(initial_hour)
-    env.station_battery_level = float(initial_bess)
-    env.car_present           = int(initial_car_present)
-    env.car_battery_need      = float(initial_car_needs)
-
-    agent = LLMAgent(m_vars["API_BASE_URL"], m_vars["API_KEY"], m_vars["MODEL_NAME"])
-
-    episode_reward = 0.0
-    steps_taken = 0
+    env.hour = state_cfg['h']
+    if hasattr(env, '_get_grid_price'):
+        env.grid_price = env._get_grid_price(env.hour)
+    env.station_battery_level = float(state_cfg['b'])
+    env.car_present = state_cfg['c']
+    env.car_battery_need = float(state_cfg['n'])
     
-    # Phase 2: Charging (Enriched visibility)
-    for s in range(1, 11):
-        if not env.car_present: break
-        steps_taken = s
-        
+    agent = LLMAgent(m_vars["API_BASE_URL"], m_vars["API_KEY"], m_vars["MODEL_NAME"])
+    total_reward = 0.0
+    
+    # Run a short 5-step validation for the task
+    for s in range(1, 6):
         obs = {
             "hour": env.hour,
-            "grid_price": env.grid_price,
+            "grid_price": getattr(env, 'grid_price', 0.0),
             "station_battery_level": env.station_battery_level,
             "car_present": env.car_present,
             "car_battery_need": env.car_battery_need
         }
         
-        c_bef, n_bef, b_bef, gp = env.car_present, env.car_battery_need, env.station_battery_level, env.grid_price
+        # Capture state before action for math
+        c_bef, n_bef, b_bef, gp = env.car_present, env.car_battery_need, env.station_battery_level, obs["grid_price"]
         
-        # ACTING via LLM Agent
+        # Get Action
         aid = agent.get_action(obs)
-        
         env.step(SafeStationAction(action=aid))
-        step_reward, base, bonus, op, tp = compute_reward_math(aid, gp, c_bef, n_bef, b_bef)
-        episode_reward += step_reward
         
-        # Detailed Visual Breakdown (Sent to stderr to keep stdout clean for tags)
-        sys.stderr.write(f"\n--- STEP {s} SCENARIO ---\n")
-        sys.stderr.write(f"  State: Hour={obs['hour']} | Price=${gp:.2f} | BESS={b_bef:.1f}% | Need={n_bef:.1f}\n")
-        sys.stderr.write(f"  Action: {ACTIONS.get(aid, aid)}\n")
-        sys.stderr.write(f"  Breakdown: Base={base:+.1f} | Bonus={bonus:+.1f} | Cost={op:+.1f} | TimePen={tp:+.1f}\n")
+        # Calculate Reward
+        step_reward, _, _, _, _ = compute_reward_math(aid, gp, c_bef, n_bef, b_bef)
+        total_reward += step_reward
         
-        # OpenEnv Structured Output (REQUIRED TAG)
-        print(f"[STEP] step={s} reward={step_reward:.4f}", flush=True)
+        # The platform MUST see this exact format
+        print(f"[STEP] step={s} reward={step_reward:.2f}", flush=True)
 
-    return episode_reward, steps_taken
-
-# =====================================================================
-# Main Validation Flow
-# =====================================================================
+    # Calculate final score (0.0 to 1.0)
+    final_score = get_leaderboard_score(total_reward)
+    print(f"[END] task={task_id} score={final_score:.2f}", flush=True)
+    return final_score
 
 async def main():
-    # OpenEnv Structured Output Start
-    print("[START] task=safe_station", flush=True)
-
     m_vars = get_mandatory_vars()
-    # print(f"\n{SEP}\n  HACKATHON SYSTEM INITIALIZATION\n{SEP}")
-    # print(f"  API_BASE_URL:     {m_vars['API_BASE_URL']}")
-    # print(f"  MODEL_NAME:       {m_vars['MODEL_NAME']}")
-    # print(f"  LOCAL_IMAGE_NAME: {m_vars['LOCAL_IMAGE_NAME']}")
-    # print(f"{SEP}")
-
-    # 1. API Compliance
-    sys.stderr.write("\n[Compliance] Connecting to environment server at http://localhost:8000...\n")
-    try:
-        env = InferenceWrapper()
-        obs = await env.reset()
-        sys.stderr.write("  [PASS] reset() OK\n")
-        await env.step(0)
-        sys.stderr.write("  [PASS] step()  OK\n")
-        await env.close()
-    except Exception as e:
-        sys.stderr.write(f"  [FAIL] {e}\n")
-
-    # 2. Physical Test
-    rt = random.randint(0, 23)
-    rb = float(random.randint(20, 100))
-    rc = 1 # Force car present to ensure [STEP] blocks are printed
-    rn = float(random.randint(20, 80)) if rc else 0.0
     
-    total_reward, total_steps = run_full_episode_test(rt, rb, rc, rn, m_vars)
+    # Validation requires at least 3 tasks to be graded
+    task_scores = []
+    for task in TASKS:
+        score = await run_task(task["id"], task["initial_state"], m_vars)
+        task_scores.append(score)
     
-    # OpenEnv Structured Output End
-    final_score = get_leaderboard_score(total_reward)
-    print(f"[END] task=safe_station score={final_score:.4f} steps={total_steps}", flush=True)
+    avg_score = sum(task_scores) / len(task_scores)
+    sys.stderr.write(f"\n[FINAL] Avg Score across all tasks: {avg_score:.2f}\n")
 
 if __name__ == "__main__":
     asyncio.run(main())

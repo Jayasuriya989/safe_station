@@ -46,7 +46,7 @@ import yaml
 def load_metadata():
     try:
         # Load from the root directory (parent of server/)
-        yaml_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "openenv.yaml")
+        yaml_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "metaenv.yaml")
         with open(yaml_path, 'r') as f:
             return yaml.safe_load(f)
     except Exception as e:
